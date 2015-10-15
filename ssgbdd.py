@@ -63,59 +63,61 @@ def menu_criar(cmd):
         return
 
 
-print('''
+if __name__ == '__main__':
+    print('''
 Trabalho de SGBDD
 Simples Sistema de Gerenciamento de Banco de Dados Distribuido
-''')
+    ''')
 
-while True:
-    try:
-        i = input('Instancias: ')
-        inst_num = int(i)
-        break
-    except ValueError:
-        pass
-    except KeyboardInterrupt:
-        exit(1)
+    while True:
+        try:
+            i = input('Instancias: ')
+            inst_num = int(i)
+            break
+        except ValueError:
+            pass
+        except KeyboardInterrupt:
+            exit(1)
 
-instances = list()
-for n in range(inst_num):
-    instances.insert(n, dict())
-    instances[n]['id'] = n
-    instances[n]['conn'], child_conn = multiprocessing.Pipe()
-    proc = multiprocessing.Process(target=db_instance, args=(n, child_conn))
-    proc.start()
-    instances[n]['proc'] = proc
+    instances = list()
+    for n in range(inst_num):
+        instances.insert(n, dict())
+        instances[n]['id'] = n
+        instances[n]['conn'], child_conn = multiprocessing.Pipe()
+        proc = multiprocessing.Process(target=db_instance, args=(n, child_conn))
+        proc.start()
+        instances[n]['proc'] = proc
 
-for n in instances:
-    if n['conn'].recv():
-        #instancia pronta
-        pass
+    for n in instances:
+        if n['conn'].recv():
+            #instancia pronta
+            pass
 
-print('''
-Comandos: CRIAR, SAIR
-''')
+    print('''
+    Comandos: CRIAR, SAIR
+    ''')
 
-menu = {
-    'CRIAR': menu_criar,
-}
+    menu = {
+        'CRIAR': menu_criar,
+    }
 
-cmd = None
-while cmd != 'SAIR':
-    #recebe instrucao
-    try:
-        cmd = input('> ').upper().split()
-        menu[cmd[0]](cmd)
-    except KeyError:
-        pass
-    except IndexError:
-        pass
-    except KeyboardInterrupt:
-        break
+    cmd = None
+    while cmd != 'SAIR':
+        #recebe instrucao
+        try:
+            cmd = input('> ').upper()
+            opt = cmd.split()
+            menu[opt[0]](opt)
+        except KeyError:
+            pass
+        except IndexError:
+            pass
+        except KeyboardInterrupt:
+            break
 
-print('Finalizando')
-for n in instances:
-    n['conn'].send('X')
-    n['proc'].join()
+    print('Finalizando')
+    for n in instances:
+        n['conn'].send('X')
+        n['proc'].join()
 
-print('Fim\n')
+    print('Fim\n')

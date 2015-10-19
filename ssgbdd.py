@@ -4,7 +4,11 @@ import sqlite3
 import signal
 
 
-def db_instance(id, conn):
+def db_instance(id, comm):
+    '''Conecta a um banco (atualmente um Sqlite :memory:), testa conexao, envia
+    sinal positivo para processo pai e fica aguardando comandos SQL.
+    Se receber 'X', encerra conexao.
+    '''
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     print('[b%d] Iniciando instancia de banco' % id)
@@ -12,11 +16,11 @@ def db_instance(id, conn):
     cur = db.cursor()
     cur.execute('''SELECT 1''')
     print('[b%d] Testando conexao: ' % id, cur.fetchone())
-    conn.send(True)
+    comm.send(True)
     while True:
         try:
             #aguarda proxima instrucao
-            cmd = conn.recv()
+            cmd = comm.recv()
             #processa instrucao
             if cmd == 'X':
                 break
@@ -26,41 +30,57 @@ def db_instance(id, conn):
     print('[b%d] Encerrando conexao' % id)
     db.close()
 
-def menu_criar_col(cmd):
+def abrir_instancias(inst_num):
+    ''' Abre [inst_num] processos que se conectam a bancos diferentes e aguarda
+    sinal de conexão pronta e testada de cada um.
+    Retorna: dict de processos abertos e comunicacoes respectivas.
+    '''
+    instances = list()
+    for n in range(inst_num):
+        instances.insert(n, dict())
+        instances[n]['id'] = n
+        instances[n]['comm'], child_conn = multiprocessing.Pipe()
+        proc = multiprocessing.Process(target=db_instance, args=(n, child_conn))
+        proc.start()
+        instances[n]['proc'] = proc
+
+    for n in instances:
+        if n['comm'].recv():
+            #instancia pronta
+            pass
+
+def criar_tabela(name, objs):
+    '''Constroi tabela e colunas como parte do comando CRIAR.
+    Retorna: nada
+    '''
+    for col in objs:
+        col_parts = col.split()
+        col_name = col_parts[0]
+        col_type = col_parts[1]
+
+def criar_regra(name, objs):
     raise NotImplemented()
-    pass
 
 def menu_criar(cmd):
-    name_index = 1
+    '''Interpreta comando CRIAR.
+    Retorna: nada.
+    '''
+    cmd_parts = cmd.partition('(')
+    objs = cmd_parts[1].partition(')').split(',')
     try:
-        if cmd[1] == 'TABELA':
-            name_index += 1
-        table_name = cmd[name_index]
+        name_parts = cmd_parts[0].split()
+
+        if name_parts[0] == 'TABELA':
+            return criar_tabela(name_parts[1], objs)
+
+        elif name_parts[0] == 'REGRA':
+            return criar_regra(name_parts[1], objs)
+
     except IndexError:
         print('Falta parametro: CRIAR [nome_tabela]')
-        return
+        return None
 
-    print('Tabela:', table_name)
-    print('Comandos: [C]oluna, [R]egra, [P]ronto, [D]esistir')
 
-    submenu = {
-        'C': menu_criar_col,
-    }
-
-    subcmd = None
-    while subcmd != 'D':
-        try:
-            subcmd = input('... ').upper().split()
-            submenu[subcmd[0]](subcmd)
-        except KeyError:
-            pass
-        except IndexError:
-            pass
-        except KeyboardInterrupt:
-            break
-
-    if cmd == 'D':
-        return
 
 
 if __name__ == '__main__':
@@ -79,19 +99,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
         except KeyboardInterrupt:
             exit(1)
 
-    instances = list()
-    for n in range(inst_num):
-        instances.insert(n, dict())
-        instances[n]['id'] = n
-        instances[n]['conn'], child_conn = multiprocessing.Pipe()
-        proc = multiprocessing.Process(target=db_instance, args=(n, child_conn))
-        proc.start()
-        instances[n]['proc'] = proc
-
-    for n in instances:
-        if n['conn'].recv():
-            #instancia pronta
-            pass
+    instances = abrir_instancias(inst_num)
 
     print('''
     Comandos: CRIAR, SAIR
@@ -106,8 +114,8 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
         #recebe instrucao
         try:
             cmd = input('> ').upper()
-            opt = cmd.split()
-            menu[opt[0]](opt)
+            cmd_parts = cmd.partition(' ')
+            menu[cmd_parts[0]](cmd_parts[2])
         except KeyError:
             pass
         except IndexError:
@@ -117,7 +125,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
 
     print('Finalizando')
     for n in instances:
-        n['conn'].send('X')
+        n['comm'].send('X')
         n['proc'].join()
 
     print('Fim\n')

@@ -4,10 +4,10 @@ import sqlite3
 import signal
 
 
-def db_instance(id, comm):
-    '''Conecta a um banco (atualmente um Sqlite :memory:), testa conexao, envia
-    sinal positivo para processo pai e fica aguardando comandos SQL.
-    Se receber 'X', encerra conexao.
+def db_process(id, comm):
+    '''Conecta a um banco Sqlite, testa conexao, envia sinal positivo para
+    processo pai e fica aguardando comandos SQL. Se receber 'X',
+    encerra conexao.
     '''
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -33,14 +33,14 @@ def db_instance(id, comm):
 def abrir_instancias(inst_num):
     ''' Abre [inst_num] processos que se conectam a bancos diferentes e aguarda
     sinal de conexão pronta e testada de cada um.
-    Retorna: dict de processos abertos e comunicacoes respectivas.
+    Retorna: lista de processos com "id" e comunicacoes respectivas.
     '''
     instances = list()
     for n in range(inst_num):
         instances.insert(n, dict())
         instances[n]['id'] = n
         instances[n]['comm'], child_conn = multiprocessing.Pipe()
-        proc = multiprocessing.Process(target=db_instance, args=(n, child_conn))
+        proc = multiprocessing.Process(target=db_process, args=(n, child_conn))
         proc.start()
         instances[n]['proc'] = proc
 
@@ -48,6 +48,7 @@ def abrir_instancias(inst_num):
         if n['comm'].recv():
             #instancia pronta
             pass
+    return instances
 
 def criar_tabela(name, objs):
     '''Constroi tabela e colunas como parte do comando CRIAR.
@@ -89,6 +90,11 @@ Trabalho de SGBDD
 Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     ''')
 
+    print('Iniciando banco principal...')
+    db_main = sqlite3.connect(':memory:')
+    cur_main = db_main.cursor()
+    cur_main.execute('''SELECT 1''') #teste OK
+
     while True:
         try:
             i = input('Instancias: ')
@@ -104,7 +110,6 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     print('''
     Comandos: CRIAR, SAIR
     ''')
-
     menu = {
         'CRIAR': menu_criar,
     }
@@ -124,6 +129,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
             break
 
     print('Finalizando')
+    db_main.close()
     for n in instances:
         n['comm'].send('X')
         n['proc'].join()

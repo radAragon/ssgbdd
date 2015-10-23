@@ -4,6 +4,14 @@ import sqlite3
 import signal
 
 
+def inicia_banco(db_name):
+    db = sqlite3.connect(db_name)
+    teste = db.cursor()
+    teste.execute('''SELECT 1''') #teste OK
+    if not teste.fetchone():
+        raise Exception('Erro na conexão')
+    return db
+
 def db_process(id, comm):
     '''Conecta a um banco Sqlite, testa conexao, envia sinal positivo para
     processo pai e fica aguardando comandos SQL. Se receber 'X',
@@ -12,10 +20,7 @@ def db_process(id, comm):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     print('[b%d] Iniciando instancia de banco' % id)
-    db = sqlite3.connect(':memory:')
-    cur = db.cursor()
-    cur.execute('''SELECT 1''')
-    print('[b%d] Testando conexao: ' % id, cur.fetchone())
+    db = inicia_banco('bd' + str(id) + '.db')
     comm.send(True)
     while True:
         try:
@@ -50,38 +55,17 @@ def abrir_instancias(inst_num):
             pass
     return instances
 
-def criar_tabela(name, objs):
-    '''Constroi tabela e colunas como parte do comando CRIAR.
-    Retorna: nada
-    '''
-    for col in objs:
-        col_parts = col.split()
-        col_name = col_parts[0]
-        col_type = col_parts[1]
 
-def criar_regra(name, objs):
-    raise NotImplemented()
-
-def menu_criar(cmd):
-    '''Interpreta comando CRIAR.
-    Retorna: nada.
-    '''
-    cmd_parts = cmd.partition('(')
-    objs = cmd_parts[1].partition(')').split(',')
+def interpreta_create(db, cmd):
+    print('')
+    create_query = cmd.partition('{')
+    cur = db.cursor()
     try:
-        name_parts = cmd_parts[0].split()
-
-        if name_parts[0] == 'TABELA':
-            return criar_tabela(name_parts[1], objs)
-
-        elif name_parts[0] == 'REGRA':
-            return criar_regra(name_parts[1], objs)
-
-    except IndexError:
-        print('Falta parametro: CRIAR [nome_tabela]')
-        return None
-
-
+        cur.execute(create_query[0])
+        status = cur.fetchone()
+        print(status)
+    except Exception as e:
+        print(e)
 
 
 if __name__ == '__main__':
@@ -90,14 +74,14 @@ Trabalho de SGBDD
 Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     ''')
 
-    print('Iniciando banco principal...')
-    db_main = sqlite3.connect(':memory:')
-    cur_main = db_main.cursor()
-    cur_main.execute('''SELECT 1''') #teste OK
+    print('''
+    Iniciando banco principal...
+    ''')
+    db_main = inicia_banco('metadados.db')
 
     while True:
         try:
-            i = input('Instancias: ')
+            i = input('Instancias distribuídas: ')
             inst_num = int(i)
             break
         except ValueError:
@@ -107,20 +91,24 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
 
     instances = abrir_instancias(inst_num)
 
-    print('''
-    Comandos: CRIAR, SAIR
-    ''')
     menu = {
-        'CRIAR': menu_criar,
+        'CREATE': interpreta_create,
     }
 
+    print('''
+Comandos: fdgd
+    CREATE TABLE nome (COLUNAS, ) {REGRAS, }
+    SAIR
+    ''')
+
     cmd = None
-    while cmd != 'SAIR':
+    while (cmd != 'SAIR'):
         #recebe instrucao
         try:
             cmd = input('> ').upper()
-            cmd_parts = cmd.partition(' ')
-            menu[cmd_parts[0]](cmd_parts[2])
+            cmd_type = cmd.partition(' ')[0]
+            if (cmd_type in menu):
+                menu[cmd_type](db_main, cmd)
         except KeyError:
             pass
         except IndexError:

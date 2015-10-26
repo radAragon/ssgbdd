@@ -2,13 +2,18 @@
 import multiprocessing
 import sqlite3
 import signal
+import metabanco
+
+#Queries uteis:
+#   Todas as tabelas: SELECT name FROM sqlite_master WHERE type='table';
+#   Descricoes: list(map(lambda x: x[0], cursor.description))
 
 
 def inicia_banco(db_name):
     db = sqlite3.connect(db_name)
-    teste = db.cursor()
-    teste.execute('''SELECT 1''') #teste OK
-    if not teste.fetchone():
+    test_cur= db.cursor()
+    test_cur.execute('''SELECT 1''') #teste OK
+    if not test_cur.fetchone():
         raise Exception('Erro na conexão')
     return db
 
@@ -58,12 +63,14 @@ def abrir_instancias(inst_num):
 
 def interpreta_create(db, cmd):
     print('')
+    #separa regras
     create_query = cmd.partition('{')
-    cur = db.cursor()
     try:
+        #testa query no banco metadados
+        cur = db.cursor()
         cur.execute(create_query[0])
         status = cur.fetchone()
-        print(status)
+
     except Exception as e:
         print(e)
 
@@ -78,6 +85,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     Iniciando banco principal...
     ''')
     db_main = inicia_banco('metadados.db')
+    metabanco.estrutura_metadados(db_main)
 
     while True:
         try:
@@ -96,7 +104,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     }
 
     print('''
-Comandos: fdgd
+Comandos:
     CREATE TABLE nome (COLUNAS, ) {REGRAS, }
     SAIR
     ''')

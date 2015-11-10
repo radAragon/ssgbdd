@@ -13,10 +13,7 @@ def estrutura_metadados(db):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tabelas_id TEXT,
         coluna_nome TEXT,
-        coluna_tipo TEXT,
-        chave_primaria INTEGER,
-        chave_estrangeira INTEGER,
-        site_id INTEGER
+        coluna_tipo TEXT
     )''')
     print('PRONTA COLUNAS')
     cur.execute('''
@@ -24,6 +21,7 @@ def estrutura_metadados(db):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tabelas_id INTEGER,
         site_id INTEGER,
+        colunas_id INTEGER,
         criterio TEXT
     )''')
     print('PRONTA REGRAS')

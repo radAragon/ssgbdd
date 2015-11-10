@@ -61,7 +61,7 @@ def abrir_instancias(inst_num):
     return instances
 
 
-def interpreta_create(db, cmd):
+def interpreta_create(db, cmd, instances):
     print('')
     #separa regras
     create_query = cmd.partition('{')
@@ -70,6 +70,7 @@ def interpreta_create(db, cmd):
         cur = db.cursor()
         cur.execute(create_query[0])
         status = cur.fetchone()
+        
 
     except Exception as e:
         print(e)
@@ -91,6 +92,9 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
         try:
             i = input('Instancias distribuídas: ')
             inst_num = int(i)
+            if (inst_num < 1):
+                print('Precisa ser maior ou igual a 1')
+                continue
             break
         except ValueError:
             pass
@@ -116,7 +120,7 @@ Comandos:
             cmd = input('> ').upper()
             cmd_type = cmd.partition(' ')[0]
             if (cmd_type in menu):
-                menu[cmd_type](db_main, cmd)
+                menu[cmd_type](db_main, cmd, instances)
         except KeyError:
             pass
         except IndexError:

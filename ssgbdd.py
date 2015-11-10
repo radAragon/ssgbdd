@@ -26,6 +26,7 @@ def db_process(id, comm):
 
     print('[b%d] Iniciando instancia de banco' % id)
     db = inicia_banco('bd' + str(id) + '.db')
+    cur = db.cursor()
     comm.send(True)
     while True:
         try:
@@ -34,11 +35,15 @@ def db_process(id, comm):
             #processa instrucao
             if cmd == 'X':
                 break
+            else:
+                cur.execute(cmd[0])
+
         except Exception as e:
             print('[b%d] Erro:', e)
-            break
+
     print('[b%d] Encerrando conexao' % id)
     db.close()
+
 
 def abrir_instancias(inst_num):
     ''' Abre [inst_num] processos que se conectam a bancos diferentes e aguarda
@@ -70,6 +75,9 @@ def interpreta_create(db, cmd, instances):
         cur = db.cursor()
         cur.execute(create_query[0])
         status = cur.fetchone()
+        print('Comando avaliado com sucesso')
+        for i in instances:
+            i['comm'].send(create_query)
         
 
     except Exception as e:
@@ -118,9 +126,10 @@ Comandos:
         #recebe instrucao
         try:
             cmd = input('> ').upper()
-            cmd_type = cmd.partition(' ')[0]
+            instruction = cmd.partition(';')[0]
+            cmd_type = instruction.partition(' ')[0]
             if (cmd_type in menu):
-                menu[cmd_type](db_main, cmd, instances)
+                menu[cmd_type](db_main, instruction, instances)
         except KeyError:
             pass
         except IndexError:

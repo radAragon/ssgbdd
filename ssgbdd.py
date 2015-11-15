@@ -4,18 +4,20 @@ import sqlite3
 import signal
 import metabanco
 
-#Queries uteis:
+# Queries uteis:
 #   Todas as tabelas: SELECT name FROM sqlite_master WHERE type='table';
 #   Descricoes: list(map(lambda x: x[0], cursor.description))
 
 
 def inicia_banco(db_name):
-    db = sqlite3.connect(db_name)
-    test_cur= db.cursor()
-    test_cur.execute('''SELECT 1''') #teste OK
+    db = sqlite3.connect(db_name, isolation_level='EXCLUSIVE',
+                         detect_types=sqlite3.PARSE_DECLTYPES)
+    test_cur = db.cursor()
+    test_cur.execute('''SELECT 1''')  # teste OK
     if not test_cur.fetchone():
         raise Exception('Erro na conexão')
     return db
+
 
 def db_process(id, comm):
     '''Conecta a um banco Sqlite, testa conexao, envia sinal positivo para
@@ -30,13 +32,13 @@ def db_process(id, comm):
     comm.send(True)
     while True:
         try:
-            #aguarda proxima instrucao
+            # aguarda proxima instrucao
             cmd = comm.recv()
-            #processa instrucao
+            # processa instrucao
             if cmd == 'X':
                 break
             else:
-                cur.execute(cmd[0])
+                cur.execute(cmd)
 
         except Exception as e:
             print('[b%d] Erro:', e)
@@ -61,27 +63,28 @@ def abrir_instancias(inst_num):
 
     for n in instances:
         if n['comm'].recv():
-            #instancia pronta
+            # instancia pronta
             pass
     return instances
 
 
-def interpreta_create(db, cmd, instances):
+def interpreta_create(cmd, instances):
     print('')
-    #separa regras
-    create_query = cmd.partition('{')
+    # separa regras
+    cmd_parts = cmd.partition('{')
+    create_query = cmd_parts[0]
     try:
-        #testa query no banco metadados
-        cur = db.cursor()
-        cur.execute(create_query[0])
-        status = cur.fetchone()
-        print('Comando avaliado com sucesso')
+        metabanco.testa_sql(create_query)
+        metabanco.cria_meta_tabela(create_query)
         for i in instances:
             i['comm'].send(create_query)
-        
+
+        if (cmd_parts[1] != ''):
+            metabanco.cria_meta_regras(cmd_parts[2])
 
     except Exception as e:
         print(e)
+        metabanco.DB.rollback()
 
 
 if __name__ == '__main__':
@@ -93,8 +96,8 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     print('''
     Iniciando banco principal...
     ''')
-    db_main = inicia_banco('metadados.db')
-    metabanco.estrutura_metadados(db_main)
+    db_meta = inicia_banco('metadados.db')
+    metabanco.estrutura_metadados(db_meta)
 
     while True:
         try:
@@ -123,13 +126,13 @@ Comandos:
 
     cmd = None
     while (cmd != 'SAIR'):
-        #recebe instrucao
+        # recebe instrucao
         try:
             cmd = input('> ').upper()
             instruction = cmd.partition(';')[0]
             cmd_type = instruction.partition(' ')[0]
             if (cmd_type in menu):
-                menu[cmd_type](db_main, instruction, instances)
+                menu[cmd_type](instruction, instances)
         except KeyError:
             pass
         except IndexError:
@@ -138,7 +141,7 @@ Comandos:
             break
 
     print('Finalizando')
-    db_main.close()
+    db_meta.close()
     for n in instances:
         n['comm'].send('X')
         n['proc'].join()

@@ -56,7 +56,6 @@ def cria_meta_tabela(create_query):
     INSERT INTO tabelas (tabela_nome)
     VALUES (:nome)
     ''', {
-        nome: table_name,
+        'nome': table_name,
     })
-    print(cur.lastrowid)
     return None

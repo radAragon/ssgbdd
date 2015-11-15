@@ -40,12 +40,18 @@ def db_process(id, comm):
             else:
                 cur.execute(cmd)
                 db.commit()
-                comm.send(True)
+                comm.send({
+                             'dados': cur.fetchall(),
+                             'result': True
+                          })
 
         except Exception as e:
             print('[b%d] Erro:', e)
             db.rollback()
-            comm.send(False)
+            comm.send({
+                         'dados': None,
+                         'result': False
+                      })
 
     print('[b%d] Encerrando conexao' % id)
     db.close()
@@ -82,11 +88,9 @@ def interpreta_create(cmd, instances):
         metabanco.cria_meta_tabela(create_query)
         for i in instances:
             i['comm'].send(create_query)
-        results = list()
         for i in instances:
-            results.append(i['comm'].recv())
-        for result in results:
-            if not result:
+            resp = i['comm'].recv()
+            if not resp['result']:
                 raise Exception('Falha ao aplicar em instância')
         metabanco.DB.commit()
 

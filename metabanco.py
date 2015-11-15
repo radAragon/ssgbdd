@@ -38,9 +38,8 @@ def testa_sql(create_query):
     return None
 
 
-def cria_meta_tabela(create_query):
-    query_parts = create_query.partition('(')
-    create_table = query_parts[0].split()
+def cria_meta_tabela(table_part):
+    create_table = table_part.split()
     table_name_index = 2
     if (create_table[1] in ['TEMP', 'TEMPORARY']):  # temporary table
         table_name_index += 1
@@ -56,6 +55,38 @@ def cria_meta_tabela(create_query):
     INSERT INTO tabelas (tabela_nome)
     VALUES (:nome)
     ''', {
-        'nome': table_name,
-    })
-    return None
+            'nome': table_name,
+         })
+    return cur.lastrowid
+
+
+def cria_meta_colunas(table_id, col_part):
+    cols = col_part.split(',')
+    col_ids = list()
+    for col in cols:
+        col_parts = col.split()
+        cur = DB.cursor()
+        cur.execute('''
+        INSERT INTO colunas (tabelas_id, coluna_nome, coluna_tipo)
+        VALUES (:table, :col_name, :col_type)
+        ''', {
+                'table': table_id,
+                'col_name': col_parts[0],
+                'col_type': col_parts[1]
+             })
+        col_ids.append(cur.lastrowid)
+    return col_ids
+
+
+def cria_meta_regras(column_ids, rules_query):
+    pass
+
+
+def cria_metadados(create_cmd):
+    create_query = create_cmd[0]
+    table_part = create_query.partition('(')
+    table_id = cria_meta_tabela(table_part[0])
+    col_part = table_part[2].partition(')')
+    column_ids = cria_meta_colunas(table_id, col_part[0])
+    if (create_cmd[1] != ''):
+        metabanco.cria_meta_regras(column_ids, create_cmd[2])

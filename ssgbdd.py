@@ -85,17 +85,15 @@ def interpreta_create(cmd, instances):
     create_query = cmd_parts[0]
     try:
         metabanco.testa_sql(create_query)
-        metabanco.cria_meta_tabela(create_query)
+        metabanco.cria_metadados(cmd_parts)
         for i in instances:
             i['comm'].send(create_query)
         for i in instances:
             resp = i['comm'].recv()
             if not resp['result']:
                 raise Exception('Falha ao aplicar em instância')
-        metabanco.DB.commit()
 
-        if (cmd_parts[1] != ''):
-            metabanco.cria_meta_regras(cmd_parts[2])
+        metabanco.DB.commit()
 
     except Exception as e:
         print(e)

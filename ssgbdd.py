@@ -81,7 +81,7 @@ def abrir_instancias(inst_num):
 def interpreta_create(cmd, instances):
     print('')
     # separa regras
-    cmd_parts = cmd.partition('{')
+    cmd_parts = cmd.partition('PARTITION')
     create_query = cmd_parts[0]
     try:
         metabanco.testa_sql(create_query)
@@ -114,7 +114,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
 
     while True:
         try:
-            i = input('Instancias distribuídas: ')
+            i = input('Instancias distribuídas (SITES): ')
             inst_num = int(i)
             if (inst_num < 1):
                 print('Precisa ser maior ou igual a 1')
@@ -133,7 +133,7 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
 
     print('''
 Comandos:
-    CREATE TABLE nome (COLUNAS, ) {REGRAS, }
+    CREATE TABLE nome (COLUNAS, ) PARTITION nome_coluna (%SITE critério, )
     SAIR
     ''')
 

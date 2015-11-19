@@ -22,9 +22,8 @@ def estrutura_metadados(connection):
     cur.execute('''
     CREATE TABLE IF NOT EXISTS regras (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tabelas_id INTEGER,
-        site_id INTEGER,
         colunas_id INTEGER,
+        site_id INTEGER,
         criterio TEXT
     )''')
     DB.commit()
@@ -39,13 +38,13 @@ def testa_sql(create_query):
 
 
 def cria_meta_tabela(table_part):
-    create_table = table_part.split()
+    table_def = table_part.split()
     table_name_index = 2
-    if (create_table[1] in ['TEMP', 'TEMPORARY']):  # temporary table
+    if (table_def[1] in ['TEMP', 'TEMPORARY']):  # temporary table
         table_name_index += 1
-    if (create_table[table_name_index] == 'IF'):  # if not exists
+    if (table_def[table_name_index] == 'IF'):  # if not exists
         table_name_index += 3
-    table_name = create_table[table_name_index]
+    table_name = table_def[table_name_index]
     schema_format = table_name.split('.')
     if (len(schema_format) > 1):  # schema name
         table_name = schema_format[1]
@@ -60,33 +59,53 @@ def cria_meta_tabela(table_part):
     return cur.lastrowid
 
 
-def cria_meta_colunas(table_id, col_part):
-    cols = col_part.split(',')
-    col_ids = list()
-    for col in cols:
-        col_parts = col.split()
+def cria_meta_colunas(table_id, columns_part):
+    columns = columns_part.split(',')
+    col_ids = dict()
+    for col in columns:
+        column_def = col.split()
         cur = DB.cursor()
         cur.execute('''
         INSERT INTO colunas (tabelas_id, coluna_nome, coluna_tipo)
         VALUES (:table, :col_name, :col_type)
         ''', {
                 'table': table_id,
-                'col_name': col_parts[0],
-                'col_type': col_parts[1]
+                'col_name': column_def[0],
+                'col_type': column_def[1]
              })
-        col_ids.append(cur.lastrowid)
+        col_ids[column_def[0]] = cur.lastrowid
     return col_ids
 
 
-def cria_meta_regras(column_ids, rules_query):
-    pass
+def cria_meta_regras(column_id, rules_part):
+    rules = rules_part[0].split(',')
+    rules_ids = list()
+    for rule in rules:
+        rule_def = rule.split()
+        cur = DB.cursor()
+        cur.execute('''
+        INSERT INTO regras (colunas_id, site_id, criterio)
+        VALUES (:column, :site, :criterio)
+        ''', {
+                'column': column_id,
+                'site': rule_def[0].rpartition('%')[2],
+                'criterio': rule_def[1] + rule_def[2]
+             })
+        rules_ids.append(cur.lastrowid)
+    return rules_ids
 
 
 def cria_metadados(create_cmd):
     create_query = create_cmd[0]
     table_part = create_query.partition('(')
     table_id = cria_meta_tabela(table_part[0])
-    col_part = table_part[2].partition(')')
-    column_ids = cria_meta_colunas(table_id, col_part[0])
-    if (create_cmd[1] != ''):
-        metabanco.cria_meta_regras(column_ids, create_cmd[2])
+    columns_part = table_part[2].partition(')')
+    columns = cria_meta_colunas(table_id, columns_part[0])
+    if (create_cmd[1] == 'PARTITION'):
+        partition_rules = create_cmd[2].partition('(')
+        column_name = partition_rules[0].strip()
+        column_id = columns[column_name]
+        print('Criando partições para %s (%d)' % (column_name, column_id))
+        rules_part = partition_rules[2].partition(')')
+        cria_meta_regras(column_id, rules_part)
+    return None

@@ -10,7 +10,7 @@ def estrutura_metadados(connection):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tabela_nome TEXT
     )''')
-    print('PRONTA TABELAS')
+    print('    PRONTA TABELAS')
     cur.execute('''
     CREATE TABLE IF NOT EXISTS colunas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,7 +18,7 @@ def estrutura_metadados(connection):
         coluna_nome TEXT,
         coluna_tipo TEXT
     )''')
-    print('PRONTA COLUNAS')
+    print('    PRONTA COLUNAS')
     cur.execute('''
     CREATE TABLE IF NOT EXISTS regras (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,18 +27,17 @@ def estrutura_metadados(connection):
         criterio TEXT
     )''')
     DB.commit()
-    print('PRONTA REGRAS')
+    print('    PRONTA REGRAS')
 
 
 def testa_create_table_query(create_table):
     table_def = create_table.partition('(')
     words = table_def[0].split()
-    table_name_index = 2
-    if (words[1] in ['TEMP', 'TEMPORARY']):  # temporary table
+    if (words[1] != 'TABLE'):  # temporary table
         raise Exception('Não é permitido criar tabela temporária')
-    if (words[table_name_index] == 'IF'):  # if not exists
-        table_name_index += 3
-    table_name = words[table_name_index]
+    if (words[2] == 'IF'):  # if not exists
+        raise Exception('Não usar IF NOT EXISTS')
+    table_name = words[2]
     cur = DB.cursor()
     cur.execute(create_table)
     print('SQL avaliado com sucesso')
@@ -113,3 +112,35 @@ def cria_metadados(table_name, create_cmd):
         else:
             raise Exception('Partition name não é uma coluna')
     return None
+
+
+def identifica_tabela(table_name):
+    cur = DB.cursor()
+    cur.execute('''
+    SELECT id FROM tabelas
+    WHERE tabela_nome = :name
+    ''', {
+            'name': table_name
+         })
+    result = cur.fetchone()
+    if not result:
+        raise Exception('Tabela não identificada')
+    return result[0]
+
+
+def identifica_colunas(table_id, column_parts):
+    columns = column_parts.upper().split(',')
+    # limpa todos os espaços ao redor dos nomes
+    clean_columns = [c.strip() for c in columns]
+    cur = DB.cursor()
+    # constroi um SELECT com todas as colunas descritas
+    statement = '''
+    SELECT id FROM colunas
+    WHERE tabelas_id = ?
+    AND coluna_nome IN ({0})
+    '''.format(','.join(['?'] * len(clean_columns)))
+    cur.execute(statement, [table_id] + clean_columns)
+    result = cur.fetchall()
+    if (len(result) != len(columns)):
+        raise Exception('Coluna não identificada')
+    return result

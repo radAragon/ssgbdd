@@ -1,8 +1,17 @@
-#! /usr/bin/python3
+#! python
+#
+#    Trabalho de BDD - Prof. Daniel de Oliveira - 2015/2
+#    Alunos: Larissa Oliveira
+#            Luis Fernando Nascimento
+#            Priscila
+#            Radames Aragon
+#    Contato: rad.aragon@gmail.com
+
 import multiprocessing
 import sqlite3
 import signal
 import metabanco
+import comandos
 
 # Queries uteis:
 #   Todas as tabelas: SELECT name FROM sqlite_master WHERE type='table';
@@ -79,47 +88,23 @@ def abrir_instancias(inst_num):
     return instances
 
 
-def interpreta_create(cmd, instances):
-    print('')
-    # separa regras
-    cmd_parts = cmd.partition('PARTITION')
-    create_table = cmd_parts[0]
-    table_name = None
-    try:
-        table_name = metabanco.testa_create_table_query(create_table)
-        metabanco.cria_metadados(table_name, cmd_parts)
-        for i in instances:
-            i['comm'].send(create_table)
-        for i in instances:
-            resp = i['comm'].recv()
-            if not resp['result']:
-                raise Exception('Falha ao aplicar em instância')
-
-        metabanco.DB.commit()
-
-    except Exception as e:
-        print('Erro:', e)
-        print('Executando ROLLBACK')
-        metabanco.DB.rollback()
-        if table_name:
-            metabanco.DB.execute('DROP TABLE %s' % table_name)
-
-
 if __name__ == '__main__':
     print('''
-Trabalho de SGBDD
-Simples Sistema de Gerenciamento de Banco de Dados Distribuido
+SSGDB
+Sistema Simples de Gerenciamento de Banco de Dados Distribuido
+v.1.0
     ''')
 
     print('''
-    Iniciando banco principal...
+Iniciando banco principal...
     ''')
     db_meta = inicia_banco('metadados.db')
     metabanco.estrutura_metadados(db_meta)
 
     while True:
         try:
-            i = input('Instancias distribuídas (SITES): ')
+            i = input('''
+Instancias distribuidas (SITES): ''')
             inst_num = int(i)
             if (inst_num < 1):
                 print('Precisa ser maior ou igual a 1')
@@ -133,22 +118,24 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
     instances = abrir_instancias(inst_num)
 
     menu = {
-        'CREATE': interpreta_create,
+        'CREATE': comandos.interpreta_create,
+        'INSERT': comandos.interpreta_insert
     }
 
     print('''
 Comandos:
     CREATE TABLE nome_tabela (nome_coluna tipo_coluna, )_
-        PARTITION nome_coluna (instância: critério, )
+        PARTITION nome_coluna (site_id: critério, )
+    INSERT INTO nome_tabela (nome_coluna, ) VALUES (valor_coluna, )
     SAIR
 ''')
 
-    cmd = None
-    while (cmd != 'SAIR'):
-        # recebe instrucao
+    cmd = ''
+    while (cmd.upper() != 'SAIR'):
+        # recebe instrução
         try:
-            cmd = input('> ').upper()
-            cmd_type = cmd.partition(' ')[0]
+            cmd = input('> ')
+            cmd_type = cmd.partition(' ')[0].upper()
             if (cmd_type in menu):
                 menu[cmd_type](cmd, instances)
         except KeyError:

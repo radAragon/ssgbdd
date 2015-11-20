@@ -26,7 +26,7 @@ def db_process(id, comm):
     '''
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    print('[b%d] Iniciando instancia de banco' % id)
+    print('[%d] Iniciando instancia de banco' % id)
     db = inicia_banco('bd' + str(id) + '.db')
     cur = db.cursor()
     comm.send(True)
@@ -67,7 +67,8 @@ def abrir_instancias(inst_num):
         instances.insert(n, dict())
         instances[n]['id'] = n
         instances[n]['comm'], child_conn = multiprocessing.Pipe()
-        proc = multiprocessing.Process(target=db_process, args=(n, child_conn))
+        proc = multiprocessing.Process(target=db_process,
+                                       args=(n+1, child_conn))
         proc.start()
         instances[n]['proc'] = proc
 
@@ -82,12 +83,13 @@ def interpreta_create(cmd, instances):
     print('')
     # separa regras
     cmd_parts = cmd.partition('PARTITION')
-    create_query = cmd_parts[0]
+    create_table = cmd_parts[0]
+    table_name = None
     try:
-        metabanco.testa_sql(create_query)
-        metabanco.cria_metadados(cmd_parts)
+        table_name = metabanco.testa_create_table_query(create_table)
+        metabanco.cria_metadados(table_name, cmd_parts)
         for i in instances:
-            i['comm'].send(create_query)
+            i['comm'].send(create_table)
         for i in instances:
             resp = i['comm'].recv()
             if not resp['result']:
@@ -96,8 +98,11 @@ def interpreta_create(cmd, instances):
         metabanco.DB.commit()
 
     except Exception as e:
-        print(e)
+        print('Erro:', e)
+        print('Executando ROLLBACK')
         metabanco.DB.rollback()
+        if table_name:
+            metabanco.DB.execute('DROP TABLE %s' % table_name)
 
 
 if __name__ == '__main__':
@@ -133,19 +138,19 @@ Simples Sistema de Gerenciamento de Banco de Dados Distribuido
 
     print('''
 Comandos:
-    CREATE TABLE nome (COLUNAS, ) PARTITION nome_coluna (%SITE critério, )
+    CREATE TABLE nome_tabela (nome_coluna tipo_coluna, )_
+        PARTITION nome_coluna (instância: critério, )
     SAIR
-    ''')
+''')
 
     cmd = None
     while (cmd != 'SAIR'):
         # recebe instrucao
         try:
             cmd = input('> ').upper()
-            instruction = cmd.partition(';')[0]
-            cmd_type = instruction.partition(' ')[0]
+            cmd_type = cmd.partition(' ')[0]
             if (cmd_type in menu):
-                menu[cmd_type](instruction, instances)
+                menu[cmd_type](cmd, instances)
         except KeyError:
             pass
         except IndexError:

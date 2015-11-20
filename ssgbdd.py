@@ -7,6 +7,7 @@
 #            Radames Aragon
 #    Contato: rad.aragon@gmail.com
 
+import sys
 import multiprocessing
 import sqlite3
 import signal
@@ -93,27 +94,29 @@ if __name__ == '__main__':
 SSGDB
 Sistema Simples de Gerenciamento de Banco de Dados Distribuido
 v.1.0
-    ''')
 
-    print('''
+
 Iniciando banco principal...
     ''')
     db_meta = inicia_banco('metadados.db')
     metabanco.estrutura_metadados(db_meta)
+    print('')
 
-    while True:
-        try:
-            i = input('''
-Instancias distribuidas (SITES): ''')
-            inst_num = int(i)
-            if (inst_num < 1):
-                print('Precisa ser maior ou igual a 1')
-                continue
-            break
-        except ValueError:
-            pass
-        except KeyboardInterrupt:
-            exit(1)
+    if len(sys.argv) > 1:
+        inst_num = int(sys.argv[1])
+    else:
+        while True:
+            try:
+                i = input('Instancias distribuidas (SITES): ')
+                inst_num = int(i)
+                if (inst_num < 1):
+                    print('Precisa ser maior ou igual a 1')
+                    continue
+                break
+            except ValueError:
+                pass
+            except KeyboardInterrupt:
+                exit(1)
 
     instances = abrir_instancias(inst_num)
 

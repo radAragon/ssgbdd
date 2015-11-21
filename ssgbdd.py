@@ -127,8 +127,9 @@ Iniciando banco principal...
 
     print('''
 Comandos:
-    CREATE TABLE nome_tabela (nome_coluna tipo_coluna, )_
-        PARTITION nome_coluna (site_id: critério, )
+    CREATE TABLE nome_tabela (nome_coluna tipo_coluna, )
+        - PARTITION nome_coluna (site_id: critério, )
+        - SITE site_id
     INSERT INTO nome_tabela (nome_coluna, ) VALUES (valor_coluna, )
     SAIR
 ''')
@@ -146,6 +147,8 @@ Comandos:
         except IndexError:
             pass
         except KeyboardInterrupt:
+            break
+        except Exception:
             break
 
     print('Finalizando')

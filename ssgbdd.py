@@ -52,14 +52,16 @@ def db_process(id, comm):
                 db.commit()
                 comm.send({
                              'dados': cur.fetchall(),
+                             'rowcount': cur.rowcount,
                              'result': True
                           })
 
         except Exception as e:
-            print('[b%d] Erro:', e)
+            print('[b%d] Erro:' % id, e)
             db.rollback()
             comm.send({
                          'dados': None,
+                         'rowcount': None,
                          'result': False
                       })
 

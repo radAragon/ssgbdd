@@ -35,7 +35,7 @@ def estrutura_metadados(connection):
 def identifica_tabela(table_name):
     cur = DB.cursor()
     cur.execute('''
-    SELECT id FROM tabelas
+    SELECT id, site_id FROM tabelas
     WHERE tabela_nome = :name
     ''', {
         'name': table_name
@@ -44,7 +44,7 @@ def identifica_tabela(table_name):
     if not result:
         raise Exception('Tabela não identificada')
 
-    return result[0]
+    return result[0], result[1]
 
 
 def identifica_colunas(table_id, column_parts):
@@ -54,7 +54,7 @@ def identifica_colunas(table_id, column_parts):
     cur = DB.cursor()
     # constrói um SELECT com todas as colunas descritas
     statement = '''
-    SELECT id FROM colunas
+    SELECT id, coluna_nome FROM colunas
     WHERE tabelas_id = ?
     AND coluna_nome IN ({0})
     '''.format(','.join(['?'] * len(clean_columns)))
@@ -66,10 +66,24 @@ def identifica_colunas(table_id, column_parts):
     return result
 
 
+def identifica_regras(column_list):
+    column_ids = [c[0] for c in column_list]
+    cur = DB.cursor()
+    # constrói um SELECT com todas as colunas_id
+    statement = '''
+    SELECT r.id, c.coluna_nome, r.site_id, r.criterio FROM regras as r
+    JOIN colunas as c ON (c.id = r.colunas_id)
+    WHERE r.colunas_id IN ({0})
+    '''.format(','.join(['?'] * len(column_ids)))
+    cur.execute(statement, column_ids)
+    result = cur.fetchall()
+    return result
+
+
 def colunas_tabela(table_id):
     cur = DB.cursor()
     cur.execute('''
-    SELECT id FROM colunas
+    SELECT id, coluna_nome FROM colunas
     WHERE tabelas_id = ?
     ''', [table_id])
     result = cur.fetchall()

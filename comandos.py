@@ -48,12 +48,15 @@ def interpreta_insert(cmd, instances):
             raise Exception('INSERT OR não suportado')
         table_id = metabanco.identifica_tabela(table_name)
         # verifica colunas
-        column_parts = cmd_parts[2].partition(')')
-        column_list = metabanco.identifica_colunas(table_id, column_parts[0])
+        if (table_parts[3] == 'VALUES'):
+            column_list = metabanco.colunas_tabela(table_id)
+            values_parts = cmd_parts[2]
+        else:
+            column_parts = cmd_parts[2].partition(')')
+            column_list = metabanco.identifica_colunas(table_id, column_parts[0])
+            values_parts = column_parts[2]
+        print(column_list)
         # verifica valores
-        values_parts = column_parts[2]
-        if values_parts.partition('(')[0].strip().upper() != 'VALUES':
-            raise Exception('INSERT precisa clausula VALUES')
         print(values_parts)
 
     except Exception as e:

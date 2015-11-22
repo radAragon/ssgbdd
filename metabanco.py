@@ -9,7 +9,8 @@ def estrutura_metadados(connection):
     CREATE TABLE IF NOT EXISTS tabelas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tabela_nome TEXT,
-        site_id INTEGER
+        site_id INTEGER,
+        tabelas_id_primaria INTEGER
     )''')
     print('    PRONTA TABELAS')
     cur.execute('''
@@ -36,10 +37,8 @@ def identifica_tabela(table_name):
     cur = DB.cursor()
     cur.execute('''
     SELECT id, site_id FROM tabelas
-    WHERE tabela_nome = :name
-    ''', {
-        'name': table_name
-    })
+    WHERE tabela_nome = ?
+    ''', [table_name])
     result = cur.fetchone()
     if not result:
         raise Exception('Tabela não identificada')
@@ -60,7 +59,7 @@ def identifica_colunas(table_id, column_parts):
     '''.format(','.join(['?'] * len(clean_columns)))
     cur.execute(statement, [table_id] + clean_columns)
     result = cur.fetchall()
-    if (len(result) != len(columns)):
+    if len(result) != len(columns):
         raise Exception('Coluna não identificada')
 
     return result
@@ -93,10 +92,10 @@ def colunas_tabela(table_id):
 def testa_create_table_query(create_table):
     table_def = create_table.partition('(')
     words = table_def[0].split()
-    if (words[1] != 'TABLE'):  # temporary table
+    if words[1] != 'TABLE':  # temporary table
         raise Exception('Não é permitido criar tabela temporária')
 
-    if (words[2] == 'IF'):  # if not exists
+    if words[2] == 'IF':  # if not exists
         raise Exception('Não usar IF NOT EXISTS')
 
     table_name = words[2]
@@ -141,6 +140,7 @@ def cria_meta_tabela(table_name, table_part):
 def cria_meta_colunas(table_id, columns_part):
     columns = columns_part.split(',')
     columns_def = dict()
+    ref_table_id = None
     for col in columns:
         column_words = col.split()
         ref_col_id = None
@@ -152,11 +152,11 @@ def cria_meta_colunas(table_id, columns_part):
             if len(column_words) > 2:
                 if column_words[2] == 'REFERENCES':
                     ref_table_name = column_words[3]
-                    ref_table_id = identifica_tabela(ref_table_name)
+                    ref_table_id, site_id = identifica_tabela(ref_table_name)
                     ref_col_id = identifica_colunas(ref_table_id, 'ID')[0][0]
-                    print(ref_col_id)
+
                 else:
-                    raise Exception('Colunas constraint não suportado')
+                    raise Exception('Definição de coluna %s não suportado' % column_words[0])
 
         cur = DB.cursor()
         cur.execute('''
@@ -175,7 +175,7 @@ def cria_meta_colunas(table_id, columns_part):
         })
         columns_def[column_words[0]] = cur.lastrowid
 
-    return columns_def
+    return columns_def, ref_table_id
 
 
 def cria_meta_regras(column_id, rules_part):
@@ -207,8 +207,24 @@ def define_site_tabela(table_id, site):
         'site': site,
         'table': table_id
     })
-    if (cur.rowcount < 1):
+    if cur.rowcount < 1:
         raise Exception('Erro ao definir site de tabela')
+
+    return None
+
+
+def define_tabela_primaria(table_id, ref_table_id):
+    cur = DB.cursor()
+    cur.execute('''
+    UPDATE tabelas
+    SET tabelas_id_primaria = :ref
+    WHERE id = :table
+    ''', {
+        'ref': ref_table_id,
+        'table': table_id
+    })
+    if cur.rowcount < 1:
+        raise Exception('Erro ao definir tabela primária')
 
     return None
 
@@ -220,7 +236,7 @@ def cria_metadados(table_name, create_cmd):
     table_id = cria_meta_tabela(table_name, table_part[0])
     # define colunas
     columns_part = table_part[2].partition(')')
-    columns = cria_meta_colunas(table_id, columns_part[0])
+    columns, ref_table_id = cria_meta_colunas(table_id, columns_part[0])
     # define destribuição
     if (create_cmd[1] == 'PARTITION'):
         partition_rules = create_cmd[2].partition('(')
@@ -232,8 +248,11 @@ def cria_metadados(table_name, create_cmd):
             cria_meta_regras(column_id, rules_part[0])
         else:
             raise Exception('Partition nome_coluna não é uma coluna')
+
     elif (create_cmd[1] == 'SITE'):
         site = int(create_cmd[2])
         define_site_tabela(table_id, site)
+    elif (create_cmd[1] == 'REFERENCES'):
+        define_tabela_primaria(table_id, ref_table_id)
 
     return None

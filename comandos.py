@@ -10,8 +10,10 @@ def interpreta_create(cmd, instances):
         cmd_parts = upper_cmd.partition('PARTITION')
     elif 'SITE' in upper_cmd:
         cmd_parts = upper_cmd.partition('SITE')
+    elif 'REFERENCES' in upper_cmd:
+        cmd_parts = [upper_cmd, 'REFERENCES']
     else:
-        raise Exception('Precisa definir PARTITION ou SITE')
+        raise Exception('Precisa definir PARTITION, SITE ou conter REFERENCES')
 
     create_table = cmd_parts[0]
     table_name = None
@@ -69,9 +71,9 @@ def interpreta_insert(cmd, instances):
                 rows = cur.fetchall()
                 if (len(rows) > 0):
                     site_id = rule['site_id']
-                    print('Partição %d: %s %s' % (site_id,
-                                                  rule['coluna_nome'],
-                                                  rule['criterio']))
+                    print('Site %d: %s %s' % (site_id,
+                                              rule['coluna_nome'],
+                                              rule['criterio']))
                     # print([tuple(row) for row in rows])
                     statement = 'INSERT INTO %s VALUES ({0})'.format(','.join(['?'] * len(rows[0].keys()))) % table_name
                     i = instances[site_id - 1]

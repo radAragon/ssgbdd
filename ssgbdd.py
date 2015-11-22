@@ -152,8 +152,8 @@ Iniciando banco principal...
 Comandos:
     CREATE TABLE nome ([id INTEGER [PRIMARY KEY]],
                        nome_coluna tipo_coluna [REFERENCES nome_tabela], )
-        - PARTITION nome_coluna (site_id: critério, )
-        - SITE site_id
+        - [PARTITION nome_coluna (site_id: critério, )]
+        - [SITE site_id]
     INSERT INTO nome_tabela [(nome_coluna, )] VALUES (valor_coluna, )
     SAIR
 ''')

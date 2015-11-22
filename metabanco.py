@@ -36,14 +36,14 @@ def estrutura_metadados(connection):
 def identifica_tabela(table_name):
     cur = DB.cursor()
     cur.execute('''
-    SELECT id, site_id FROM tabelas
+    SELECT * FROM tabelas
     WHERE tabela_nome = ?
     ''', [table_name])
     result = cur.fetchone()
     if not result:
         raise Exception('Tabela não identificada')
 
-    return result[0], result[1]
+    return result
 
 
 def identifica_colunas(table_id, column_parts):
@@ -152,7 +152,8 @@ def cria_meta_colunas(table_id, columns_part):
             if len(column_words) > 2:
                 if column_words[2] == 'REFERENCES':
                     ref_table_name = column_words[3]
-                    ref_table_id, site_id = identifica_tabela(ref_table_name)
+                    table = identifica_tabela(ref_table_name)
+                    ref_table_id = table['id']
                     ref_col_id = identifica_colunas(ref_table_id, 'ID')[0][0]
 
                 else:

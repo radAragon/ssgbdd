@@ -45,7 +45,10 @@ def interpreta_insert(cmd, instances):
     print('')
     try:
         table_name, rows = metabanco.testa_insert_query(cmd)
-        table_id, site_id = metabanco.identifica_tabela(table_name)
+        table = metabanco.identifica_tabela(table_name)
+        table_id = table['id']
+        site_id = table['site_id']
+        table_owner = table['tabelas_id_primaria']
         if site_id:
             instances[site_id]['comm'].send({
                 'execute': 'SIMPLE',
@@ -56,6 +59,9 @@ def interpreta_insert(cmd, instances):
                 raise Exception('Falha ao aplicar em instância')
             else:
                 print('Inseridos:', resp['rowcount'])
+
+        elif table_owner:
+            pass
         else:
             rules = metabanco.identifica_regras(table_id, rows[0].keys())
             # print([tuple(rule) for rule in rules])

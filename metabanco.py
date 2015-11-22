@@ -68,7 +68,7 @@ def identifica_colunas(table_id, column_parts):
 
 def identifica_regras(table_id, column_list):
     cur = DB.cursor()
-    # constrói um SELECT com todas as colunas_id
+    # constrói um SELECT com todas as colunas
     statement = '''
     SELECT r.id, c.coluna_nome, r.site_id, r.criterio FROM regras as r
     JOIN colunas as c ON (c.id = r.colunas_id)

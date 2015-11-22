@@ -11,6 +11,7 @@ import sys
 import multiprocessing
 import sqlite3
 import signal
+import logging
 import metabanco
 import comandos
 
@@ -38,7 +39,7 @@ def db_process(id, comm):
 
     print('[%d] Iniciando instancia de banco' % id)
     db = inicia_banco('bd' + str(id) + '.db')
-    cur = db.cursor()
+    db.row_factory = sqlite3.Row
     comm.send(True)
     while True:
         try:
@@ -48,24 +49,41 @@ def db_process(id, comm):
             if cmd == 'X':
                 break
             else:
-                cur.execute(cmd)
+                cur = db.cursor()
+                query = cmd['query']
+                values = None
+                if 'values' in cmd:
+                    values = cmd['values']
+
+                if cmd['execute'] == 'SIMPLE':
+                    if values:
+                        cur.execute(query, values)
+                    else:
+                        cur.execute(query)
+                elif cmd['execute'] == 'MANY':
+                    cur.executemany(query, values)
+                elif cmd['execute'] == 'SCRIPT':
+                    cur.executescript(query)
+                else:
+                    continue
+
                 db.commit()
                 comm.send({
-                             'dados': cur.fetchall(),
-                             'rowcount': cur.rowcount,
-                             'result': True
-                          })
+                    'dados': cur.fetchall(),
+                    'rowcount': cur.rowcount,
+                    'result': True
+                })
 
         except Exception as e:
-            print('[b%d] Erro:' % id, e)
+            print('[%d] Erro:' % id, e)
             db.rollback()
             comm.send({
-                         'dados': None,
-                         'rowcount': None,
-                         'result': False
-                      })
+                'dados': None,
+                'rowcount': None,
+                'result': False
+            })
 
-    print('[b%d] Encerrando conexao' % id)
+    print('[%d] Encerrando conexao' % id)
     db.close()
 
 
@@ -76,13 +94,15 @@ def abrir_instancias(inst_num):
     '''
     instances = list()
     for n in range(inst_num):
-        instances.insert(n, dict())
-        instances[n]['id'] = n
-        instances[n]['comm'], child_conn = multiprocessing.Pipe()
+        instance = dict()
+        id = n + 1
+        instance['id'] = id
+        instance['comm'], child_conn = multiprocessing.Pipe()
         proc = multiprocessing.Process(target=db_process,
-                                       args=(n+1, child_conn))
+                                       args=(id, child_conn))
         proc.start()
-        instances[n]['proc'] = proc
+        instance['proc'] = proc
+        instances.insert(n, instance)
 
     for n in instances:
         if n['comm'].recv():
@@ -152,8 +172,9 @@ Comandos:
             pass
         except KeyboardInterrupt:
             break
-        except Exception:
-            break
+        except Exception as e:
+            print(e)
+            pass
 
     print('Finalizando')
     db_meta.close()

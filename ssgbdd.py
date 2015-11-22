@@ -134,7 +134,7 @@ Comandos:
                        nome_coluna tipo_coluna [REFERENCES nome_tabela], )
         - PARTITION nome_coluna (site_id: critério, )
         - SITE site_id
-    INSERT INTO nome_tabela (nome_coluna, ) VALUES (valor_coluna, )
+    INSERT INTO nome_tabela [(nome_coluna, )] VALUES (valor_coluna, )
     SAIR
 ''')
 

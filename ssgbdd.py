@@ -39,7 +39,7 @@ def db_process(id, comm):
 
     print('[%d] Iniciando instancia de banco' % id)
     db = inicia_banco('bd' + str(id) + '.db')
-    db.row_factory = sqlite3.Row
+    # db.row_factory = sqlite3.Row
     comm.send(True)
     while True:
         try:
@@ -66,19 +66,19 @@ def db_process(id, comm):
                     cur.executescript(query)
                 else:
                     continue
-
                 db.commit()
-                comm.send({
-                    'dados': cur.fetchall(),
+                resp = {
+                    'rows': cur.fetchall(),  # TODO: tirar
                     'rowcount': cur.rowcount,
                     'result': True
-                })
+                }
+                comm.send(resp)
 
         except Exception as e:
             print('[%d] Erro:' % id, e)
             db.rollback()
             comm.send({
-                'dados': None,
+                'rows': None,
                 'rowcount': None,
                 'result': False
             })

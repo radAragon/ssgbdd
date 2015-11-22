@@ -101,6 +101,7 @@ v.1.0
 Iniciando banco principal...
     ''')
     db_meta = inicia_banco('metadados.db')
+    db_meta.row_factory = sqlite3.Row
     metabanco.estrutura_metadados(db_meta)
     print('')
 

@@ -66,16 +66,16 @@ def identifica_colunas(table_id, column_parts):
     return result
 
 
-def identifica_regras(column_list):
-    column_ids = [c[0] for c in column_list]
+def identifica_regras(table_id, column_list):
     cur = DB.cursor()
     # constrói um SELECT com todas as colunas_id
     statement = '''
     SELECT r.id, c.coluna_nome, r.site_id, r.criterio FROM regras as r
     JOIN colunas as c ON (c.id = r.colunas_id)
-    WHERE r.colunas_id IN ({0})
-    '''.format(','.join(['?'] * len(column_ids)))
-    cur.execute(statement, column_ids)
+    WHERE c.tabelas_id = ?
+    AND c.coluna_nome IN ({0})
+    '''.format(','.join(['?'] * len(column_list)))
+    cur.execute(statement, [table_id] + column_list)
     result = cur.fetchall()
     return result
 
@@ -104,6 +104,22 @@ def testa_create_table_query(create_table):
     cur.execute(create_table)
     print('SQL avaliado com sucesso')
     return table_name
+
+
+def testa_insert_query(insert):
+    cur = DB.cursor()
+    cur.execute(insert)
+    # verifica tabela
+    table_parts = insert.upper().split()
+    for i in range(0, len(table_parts)):
+        if table_parts[i] == 'INTO':
+            table_name = table_parts[i+1]
+            break
+    statement = 'SELECT * FROM ' + table_name
+    cur.execute(statement)
+    rows = cur.fetchall()
+    # print([tuple(row) for row in rows])
+    return table_name, rows
 
 
 def cria_meta_tabela(table_name, table_part):

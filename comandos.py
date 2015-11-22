@@ -39,14 +39,7 @@ def interpreta_create(cmd, instances):
 def interpreta_insert(cmd, instances):
     print('')
     try:
-        cmd_parts = cmd.partition('(')
-        # verifica tabela
-        table_parts = cmd_parts[0].upper().split()
-        table_name = None
-        if table_parts[1] == 'INTO':
-            table_name = table_parts[2]
-        else:
-            raise Exception('INSERT OR não suportado')
+        table_name, rows = metabanco.testa_insert_query(cmd)
         table_id, site_id = metabanco.identifica_tabela(table_name)
         if site_id:
             instances[site_id]['comm'].send(cmd)
@@ -55,25 +48,11 @@ def interpreta_insert(cmd, instances):
                 raise Exception('Falha ao aplicar em instância')
             else:
                 print('Inseridos:', resp['rowcount'])
+            # exclui linhas do metabanco
+            metabanco.DB.rollback()
         else:
-            # verifica colunas
-            if (table_parts[3] == 'VALUES'):
-                column_list = metabanco.colunas_tabela(table_id)
-                values_parts = cmd_parts[2]
-            else:
-                column_parts = cmd_parts[2].partition(')')
-                column_list = metabanco.identifica_colunas(table_id, column_parts[0])
-                values_parts = column_parts[2]
-            print(column_list)
-            # verifica regras
-            regras_id = metabanco.identifica_regras(column_list)
-            print(regras_id)
-            # verifica valores
-            values = re.findall(r"[\w']+", values_parts)
-            print(values)
-            insert_list = dict()
-            for row in [values[x:x+len(column_list)] for x in range(0, len(values), len(column_list))]:
-                print(row)
+            rules = metabanco.identifica_regras(table_id, rows[0].keys())
+            print([tuple(rule) for rule in rules])
 
     except Exception as e:
         print('Erro:', e)

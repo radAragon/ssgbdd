@@ -93,18 +93,19 @@ def interpreta_insert(cmd, instances):
                 '''.format(','.join(['?'] * len(resp['rows']))) % (table_name, ref['coluna_nome'])
                 cur.execute(statement, [row[0] for row in resp['rows']])
                 selected_rows = cur.fetchall()
-                statement = 'INSERT INTO %s VALUES ({0})'.format(','.join(['?'] * len(rows[0].keys()))) % table_name
-                obj = {
-                    'execute': 'MANY',
-                    'query': statement,
-                    'values': [tuple(row) for row in selected_rows]
-                }
-                i['comm'].send(obj)
-                resp = i['comm'].recv()
-                if not resp['result']:
-                    raise Exception('Falha ao aplicar em instância')
-                else:
-                    print('[%d] Inseridos:' % i['id'], resp['rowcount'])
+                if len(selected_rows) > 0:
+                    statement = 'INSERT INTO %s VALUES ({0})'.format(','.join(['?'] * len(rows[0].keys()))) % table_name
+                    obj = {
+                        'execute': 'MANY',
+                        'query': statement,
+                        'values': [tuple(row) for row in selected_rows]
+                    }
+                    i['comm'].send(obj)
+                    resp = i['comm'].recv()
+                    if not resp['result']:
+                        raise Exception('Falha ao aplicar em instância')
+                    else:
+                        print('[%d] Inseridos:' % i['id'], resp['rowcount'])
 
         else:
             rules = metabanco.identifica_regras(table_id, rows[0].keys())

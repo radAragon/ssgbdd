@@ -1,4 +1,3 @@
-import re
 import logging
 import metabanco
 
@@ -150,3 +149,7 @@ def interpreta_insert(cmd, instances):
         metabanco.DB.rollback()
 
     return None
+
+
+def interpreta_select(cmd, instances):
+    pass

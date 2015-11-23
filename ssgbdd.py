@@ -145,16 +145,24 @@ Iniciando banco principal...
 
     menu = {
         'CREATE': comandos.interpreta_create,
-        'INSERT': comandos.interpreta_insert
+        'INSERT': comandos.interpreta_insert,
+        'SELECT': comandos.interpreta_select,
     }
 
     print('''
 Comandos:
+
     CREATE TABLE nome ([id INTEGER [PRIMARY KEY]],
                        nome_coluna tipo_coluna [REFERENCES nome_tabela], )
         - [PARTITION nome_coluna (site_id: critério, )]
         - [SITE site_id]
+
     INSERT INTO nome_tabela [(nome_coluna, )] VALUES (valor_coluna, )
+
+    SELECT [nome_coluna, ] FROM nome_tabela
+        - [JOIN nome_tabela_join ON expressão]
+        - [WHERE nome_coluna critério, ]
+
     SAIR
 ''')
 

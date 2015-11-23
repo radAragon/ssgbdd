@@ -44,8 +44,8 @@ def interpreta_create(cmd, instances):
 def interpreta_insert(cmd, instances):
     print('')
     try:
-        table_name, rows = metabanco.testa_insert_query(cmd)
-        table = metabanco.identifica_tabela(table_name)
+        table, rows = metabanco.testa_insert_query(cmd)
+        table_name = table['tabela_nome']
         table_id = table['id']
         site_id = table['site_id']
         owner_id = table['tabelas_id_primaria']
@@ -141,7 +141,8 @@ def interpreta_insert(cmd, instances):
                         print('Inseridos:', resp['rowcount'])
 
         # exclui linhas do metabanco
-        metabanco.DB.rollback()
+        cur.execute('DELETE FROM %s' % table_name)
+        metabanco.DB.commit()
 
     except Exception as e:
         # logging.exception('Erro')

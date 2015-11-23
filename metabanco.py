@@ -1,3 +1,6 @@
+import sqlite3
+
+
 DB = None
 
 
@@ -16,7 +19,7 @@ def estrutura_metadados(connection):
     cur.execute('''
     CREATE TABLE IF NOT EXISTS colunas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tabelas_id TEXT,
+        tabelas_id TEXT REFERENCES tabelas(id),
         coluna_nome TEXT,
         coluna_tipo TEXT,
         ref_colunas_id INTEGER
@@ -25,12 +28,20 @@ def estrutura_metadados(connection):
     cur.execute('''
     CREATE TABLE IF NOT EXISTS regras (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        colunas_id INTEGER,
+        colunas_id INTEGER REFERENCES colunas(id),
         site_id INTEGER,
         criterio TEXT
     )''')
     DB.commit()
     print('    PRONTA REGRAS')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS sequencias (
+        tabelas_id TEXT REFERENCES tabelas(id),
+        ref_id INTEGER,
+        PRIMARY KEY (tabelas_id, ref_id)
+    )''')
+    DB.commit()
+    print('    PRONTA SEQUENCIAS')
 
 
 def identifica_tabela(table_name):
@@ -109,20 +120,40 @@ def testa_create_table_query(create_table):
     return table_name
 
 
+def verifica_global_primary_key(table_id, table_name):
+    try:
+        cur = DB.cursor()
+        statement = '''
+        INSERT INTO sequencias (tabelas_id, ref_id)
+        SELECT %d, ref_table.id
+        FROM %s AS ref_table
+        ORDER BY ref_table.id ASC
+        ''' % (table_id, table_name)
+        cur.execute(statement)
+    except sqlite3.IntegrityError as e:
+        raise sqlite3.IntegrityError('UNIQUE constraint failed: %s.ID' % table_name)
+
+
 def testa_insert_query(insert):
     cur = DB.cursor()
     cur.execute(insert)
     # verifica tabela
     query_parts = insert.upper().split()
-    for i in range(0, len(query_parts)):
-        if query_parts[i] == 'INTO':
-            table_name = query_parts[i+1]
+    next_name = False
+    for part in query_parts:
+        if part == 'INTO':
+            next_name = True
+        elif next_name:
+            table_name = part
             break
-    statement = 'SELECT * FROM ' + table_name
-    cur.execute(statement)
+    table = identifica_tabela(table_name)
+    # verifica UNIQUE primary key constraint
+    verifica_global_primary_key(table['id'], table_name)
+    # retorna linhas em formato sqlite_row
+    cur.execute('SELECT * FROM %s' % table_name)
     rows = cur.fetchall()
     # print([tuple(row) for row in rows])
-    return table_name, rows
+    return table, rows
 
 
 def cria_meta_tabela(table_name, query_part):

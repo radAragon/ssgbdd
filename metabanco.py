@@ -92,15 +92,19 @@ def colunas_tabela(table_id):
 def testa_create_table_query(create_table):
     table_def = create_table.partition('(')
     words = table_def[0].split()
-    if words[1] != 'TABLE':  # temporary table
-        raise Exception('Não é permitido criar tabela temporária')
+    next_name = False
+    for word in words:
+        if word == 'TABLE':
+            next_name = True
+        elif word == 'IF':
+            next_name = False
+        elif word == 'EXISTS':
+            next_name = True
+        elif next_name:
+            table_name = word
+            break
 
-    if words[2] == 'IF':  # if not exists
-        raise Exception('Não usar IF NOT EXISTS')
-
-    table_name = words[2]
-    cur = DB.cursor()
-    cur.execute(create_table)
+    DB.execute(create_table)
     print('SQL avaliado com sucesso')
     return table_name
 
@@ -109,10 +113,10 @@ def testa_insert_query(insert):
     cur = DB.cursor()
     cur.execute(insert)
     # verifica tabela
-    table_parts = insert.upper().split()
-    for i in range(0, len(table_parts)):
-        if table_parts[i] == 'INTO':
-            table_name = table_parts[i+1]
+    query_parts = insert.upper().split()
+    for i in range(0, len(query_parts)):
+        if query_parts[i] == 'INTO':
+            table_name = query_parts[i+1]
             break
     statement = 'SELECT * FROM ' + table_name
     cur.execute(statement)
@@ -121,7 +125,7 @@ def testa_insert_query(insert):
     return table_name, rows
 
 
-def cria_meta_tabela(table_name, table_part):
+def cria_meta_tabela(table_name, query_part):
     schema_format = table_name.split('.')
     if (len(schema_format) > 1):  # schema name
         table_name = schema_format[1]
@@ -151,10 +155,21 @@ def cria_meta_colunas(table_id, columns_part):
         else:
             if len(column_words) > 2:
                 if column_words[2] == 'REFERENCES':
-                    ref_table_name = column_words[3]
+                    ref_col_name = 'ID'
+                    if '(' in column_words[3]:
+                        ref_parts = column_words[3].partition('(')
+                        ref_table_name = ref_parts[0]
+                        if ')' in ref_parts[2]:
+                            ref_col_name = ref_parts[2].partition(')')[0]
+                    else:
+                        ref_table_name = column_words[3]
+                        if '(' in column_words[4]:
+                            ref_col_name = column_words[4].strip('()')
+
                     table = identifica_tabela(ref_table_name)
                     ref_table_id = table['id']
-                    ref_col_id = identifica_colunas(ref_table_id, 'ID')[0][0]
+                    ref_col = identifica_colunas(ref_table_id, ref_col_name)
+                    ref_col_id = ref_col[0][0]
 
                 else:
                     raise Exception('Definição de coluna %s não suportado' % column_words[0])
@@ -170,8 +185,8 @@ def cria_meta_colunas(table_id, columns_part):
         VALUES (:table, :col_name, :col_type, :ref_col)
         ''', {
             'table': table_id,
-            'col_name': column_words[0],
-            'col_type': column_words[1],
+            'col_name': column_words[0].strip('()'),
+            'col_type': column_words[1].strip('()'),
             'ref_col': ref_col_id
         })
         columns_def[column_words[0]] = cur.lastrowid
@@ -233,12 +248,11 @@ def define_tabela_primaria(table_id, ref_table_id):
 def cria_metadados(table_name, create_cmd):
     create_query = create_cmd[0]
     # define tabela
-    table_part = create_query.partition('(')
-    table_id = cria_meta_tabela(table_name, table_part[0])
+    query_part = create_query.partition('(')
+    table_id = cria_meta_tabela(table_name, query_part[0])
     # define colunas
-    columns_part = table_part[2].partition(')')
-    columns, ref_table_id = cria_meta_colunas(table_id, columns_part[0])
-    # define destribuição
+    columns, ref_table_id = cria_meta_colunas(table_id, query_part[2])
+    # define distribuição
     if (create_cmd[1] == 'PARTITION'):
         partition_rules = create_cmd[2].partition('(')
         partition_name = partition_rules[0].strip()

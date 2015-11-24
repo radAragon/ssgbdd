@@ -17,7 +17,7 @@ import metabanco
 import comandos
 
 CURRENT_SITE = None
-LATENCY = 0.01  # seconds
+LATENCY = 0.13  # seconds
 
 
 def inicia_banco(db_name):
@@ -53,7 +53,7 @@ def db_process(id, comm):
                 query = instruction['query']
                 values = None
                 if 'values' in instruction:
-                    instruction = instruction['values']
+                    values = instruction['values']
 
                 if instruction['execute'] == 'SIMPLE':
                     if values:
@@ -81,7 +81,8 @@ def db_process(id, comm):
                 comm.send(resp)
 
         except Exception as e:
-            print('[%d] Erro:' % id, e)
+            #print('[%d] Erro:' % id, e)
+            logging.exception('[%]' % id)
             db.rollback()
             comm.send({
                 'rows': None,

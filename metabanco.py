@@ -156,6 +156,23 @@ def testa_insert_query(insert):
     return table, rows
 
 
+def testa_select_query(select):
+    cur = DB.cursor()
+    cur.execute(select)
+    query_parts = select.upper().split()
+    tables = list()
+    next_name = False
+    for part in query_parts:
+        if part == 'FROM':
+            next_name = True
+        elif part == 'JOIN':
+            next_name = True
+        elif next_name:
+            tables.append(identifica_tabela(part))
+            next_name = False
+    return tables, cur.description
+
+
 def cria_meta_tabela(table_name, query_part):
     schema_format = table_name.split('.')
     if (len(schema_format) > 1):  # schema name

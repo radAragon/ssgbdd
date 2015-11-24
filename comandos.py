@@ -1,8 +1,9 @@
+import time
 import logging
 import metabanco
 
 
-def interpreta_create(cmd, instances):
+def interpreta_create(cmd, instances, current_site):
     print('')
     # separa regras
     upper_cmd = cmd.upper()
@@ -41,7 +42,7 @@ def interpreta_create(cmd, instances):
     return None
 
 
-def interpreta_insert(cmd, instances):
+def interpreta_insert(cmd, instances, current_site):
     print('')
     try:
         table, rows = metabanco.testa_insert_query(cmd)
@@ -153,5 +154,37 @@ def interpreta_insert(cmd, instances):
     return None
 
 
-def interpreta_select(cmd, instances):
-    pass
+def interpreta_select(cmd, instances, current_site):
+    print('')
+    initial_time = time.time()
+    if not current_site:
+        raise Exception('Precisa definir SITE atual')
+
+    try:
+        tables, columns = metabanco.testa_select_query(cmd)
+        union = list()
+        for instance in instances:
+            obj = {
+                'execute': 'SIMPLE',
+                'query': cmd,
+                'current_site': current_site
+            }
+            instance['comm'].send(obj)
+            resp = instance['comm'].recv()
+            if not resp['result']:
+                raise Exception('Falha ao ler em instância')
+            else:
+                union.extend(resp['rows'])
+
+        final_time = time.time()
+        print(tuple([c[0] for c in columns]))
+        for row in union:
+            print(tuple(row))
+        print('''
+                                        Consulta realizada em %1.10fs
+        ''' % (final_time - initial_time))
+
+    except Exception as e:
+        # logging.exception('Erro')
+        print(e)
+        metabanco.DB.rollback()

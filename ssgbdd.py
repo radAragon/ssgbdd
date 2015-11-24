@@ -9,15 +9,15 @@
 
 import sys
 import multiprocessing
+import time
 import sqlite3
 import signal
 import logging
 import metabanco
 import comandos
 
-# Queries uteis:
-#   Todas as tabelas: SELECT name FROM sqlite_master WHERE type='table';
-#   Descricoes: list(map(lambda x: x[0], cursor.description))
+CURRENT_SITE = None
+LATENCY = 0.01  # seconds
 
 
 def inicia_banco(db_name):
@@ -44,34 +44,40 @@ def db_process(id, comm):
     while True:
         try:
             # aguarda proxima instrucao
-            cmd = comm.recv()
+            instruction = comm.recv()
             # processa instrucao
-            if cmd == 'X':
+            if instruction == 'X':
                 break
             else:
                 cur = db.cursor()
-                query = cmd['query']
+                query = instruction['query']
                 values = None
-                if 'values' in cmd:
-                    values = cmd['values']
+                if 'values' in instruction:
+                    instruction = instruction['values']
 
-                if cmd['execute'] == 'SIMPLE':
+                if instruction['execute'] == 'SIMPLE':
                     if values:
                         cur.execute(query, values)
                     else:
                         cur.execute(query)
-                elif cmd['execute'] == 'MANY':
+                elif instruction['execute'] == 'MANY':
                     cur.executemany(query, values)
-                elif cmd['execute'] == 'SCRIPT':
+                elif instruction['execute'] == 'SCRIPT':
                     cur.executescript(query)
                 else:
                     continue
                 db.commit()
                 resp = {
-                    'rows': cur.fetchall(),  # TODO: tirar
+                    'rows': cur.fetchall(),
                     'rowcount': cur.rowcount,
                     'result': True
                 }
+                if 'current_site' in instruction:
+                    if instruction['current_site'] != id:
+                        # este delay serve para simular latência entre SITES
+                        for row in resp['rows']:
+                            time.sleep(LATENCY)
+
                 comm.send(resp)
 
         except Exception as e:
@@ -111,6 +117,16 @@ def abrir_instancias(inst_num):
     return instances
 
 
+def site_corrente(cmd, instances, current_site):
+    global CURRENT_SITE
+    cmd_parts = cmd.split()
+    site = int(cmd_parts[1])
+    if site <= len(instances):
+        CURRENT_SITE = site
+    else:
+        raise Exception('Site inválido')
+
+
 if __name__ == '__main__':
     print('''
 SSGDB
@@ -144,6 +160,7 @@ Iniciando banco principal...
     instances = abrir_instancias(inst_num)
 
     menu = {
+        'SITE': site_corrente,
         'CREATE': comandos.interpreta_create,
         'INSERT': comandos.interpreta_insert,
         'SELECT': comandos.interpreta_select,
@@ -151,6 +168,8 @@ Iniciando banco principal...
 
     print('''
 Comandos:
+
+    SITE site_id
 
     CREATE TABLE nome ([id INTEGER [PRIMARY KEY]],
                        nome_coluna tipo_coluna [REFERENCES nome_tabela], )
@@ -170,10 +189,13 @@ Comandos:
     while (cmd.upper() != 'SAIR'):
         # recebe instrução
         try:
-            cmd = input('> ')
+            bash = '> '
+            if CURRENT_SITE:
+                bash = '#%d > ' % CURRENT_SITE
+            cmd = input(bash)
             cmd_type = cmd.partition(' ')[0].upper()
             if (cmd_type in menu):
-                menu[cmd_type](cmd, instances)
+                menu[cmd_type](cmd, instances, CURRENT_SITE)
         except KeyError:
             pass
         except IndexError:

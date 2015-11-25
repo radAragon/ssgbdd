@@ -170,7 +170,20 @@ def testa_select_query(select):
         elif next_name:
             tables.append(identifica_tabela(part))
             next_name = False
-    return tables, [c[0] for c in cur.description]
+
+    columns = [c[0] for c in cur.description]
+    # verifica colunas com nome repetido
+    repeated = dict()
+    for x in range(len(columns)):
+        if x > columns.index(columns[x]):
+            nome = columns[x]
+            if nome in repeated:
+                repeated[nome] += 1
+            else:
+                repeated[nome] = 1
+            columns[x] = nome + '_' + str(repeated[nome])
+
+    return tables, columns
 
 
 def cria_meta_tabela(table_name, query_part):

@@ -168,15 +168,12 @@ def interpreta_select(cmd, instances, current_site):
 
     limit_cmd = upper_cmd.partition('LIMIT')
     upper_cmd = limit_cmd[0]
-    print(limit_cmd[2])
 
     order_cmd = upper_cmd.partition('ORDER BY')
     upper_cmd = order_cmd[0]
-    print(order_cmd[2])
 
     group_cmd = upper_cmd.partition('GROUP BY')
     upper_cmd = group_cmd[0]
-    print(group_cmd[2])
 
     try:
         tables, columns = metabanco.testa_select_query(cmd)

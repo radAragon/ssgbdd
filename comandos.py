@@ -237,6 +237,7 @@ def interpreta_select(cmd, instances, current_site):
 
 
 def exibe_linhas(columns, rows):
-    print(tuple(columns))
+    col_size = 15
+    print(' | '.join([str(col).center(col_size) for col in columns]))
     for row in rows:
-        print(tuple(row))
+        print(' | '.join([str(col).ljust(col_size) for col in row]))

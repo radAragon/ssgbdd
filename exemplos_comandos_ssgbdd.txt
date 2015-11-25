@@ -1,0 +1,13 @@
+﻿> CREATE TABLE FUNC (ID INTEGER PRIMARY KEY, NOME TEXT, IDADE INTEGER) PARTITION IDADE (1: >25, 2: <= 25)
+
+> insert into func values (1, 'Maria', 20), (2, 'João', 30), (3, 'Carlos', 21)
+
+> create table atividades (id integer primary key, func_id integer references func (id), atividade text)
+
+> insert into atividades values (1, 1, 'gerente'), (2, 2, 'auxiliar'), (3, 2, 'motorista')
+
+> site 2
+
+> select * from atividades join func on (func.id = atividades.func_id)
+
+> select func.id, func.nome, func.idade, atividades.id as 'atividade_id', atividade from func left join atividades on (atividades.func_id = func.id) order by 1

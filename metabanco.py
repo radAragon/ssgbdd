@@ -170,7 +170,7 @@ def testa_select_query(select):
         elif next_name:
             tables.append(identifica_tabela(part))
             next_name = False
-    return tables, cur.description
+    return tables, [c[0] for c in cur.description]
 
 
 def cria_meta_tabela(table_name, query_part):

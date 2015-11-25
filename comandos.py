@@ -95,7 +95,9 @@ def interpreta_insert(cmd, instances, current_site):
                 cur.execute(statement, [row[0] for row in resp['rows']])
                 selected_rows = cur.fetchall()
                 if len(selected_rows) > 0:
-                    statement = 'INSERT INTO %s VALUES ({0})'.format(','.join(['?'] * len(rows[0].keys()))) % table_name
+                    statement = '''
+                    INSERT INTO %s VALUES ({0})
+                    '''.format(','.join(['?'] * len(rows[0].keys()))) % table_name
                     obj = {
                         'execute': 'MANY',
                         'query': statement,
@@ -128,7 +130,9 @@ def interpreta_insert(cmd, instances, current_site):
                                               rule['criterio']))
                     # print([tuple(row) for row in rows])
                     i = instances[site_id - 1]
-                    statement = 'INSERT INTO %s VALUES ({0})'.format(','.join(['?'] * len(rows[0].keys()))) % table_name
+                    statement = '''
+                    INSERT INTO %s VALUES ({0})
+                    '''.format(','.join(['?'] * len(rows[0].keys()))) % table_name
                     obj = {
                         'execute': 'MANY',
                         'query': statement,
@@ -160,13 +164,27 @@ def interpreta_select(cmd, instances, current_site):
     if not current_site:
         raise Exception('Precisa definir SITE atual')
 
+    upper_cmd = cmd.upper()
+
+    limit_cmd = upper_cmd.partition('LIMIT')
+    upper_cmd = limit_cmd[0]
+    print(limit_cmd[2])
+
+    order_cmd = upper_cmd.partition('ORDER BY')
+    upper_cmd = order_cmd[0]
+    print(order_cmd[2])
+
+    group_cmd = upper_cmd.partition('GROUP BY')
+    upper_cmd = group_cmd[0]
+    print(group_cmd[2])
+
     try:
         tables, columns = metabanco.testa_select_query(cmd)
         union = list()
         for instance in instances:
             obj = {
                 'execute': 'SIMPLE',
-                'query': cmd,
+                'query': upper_cmd,
                 'current_site': current_site
             }
             instance['comm'].send(obj)
@@ -176,15 +194,52 @@ def interpreta_select(cmd, instances, current_site):
             else:
                 union.extend(resp['rows'])
 
+        if limit_cmd[1] or order_cmd[1] or group_cmd[1]:
+            cur = metabanco.DB.cursor()
+            union_table_name = 'TEMP_UNION_TABLE'
+            statement = '''
+            CREATE TEMPORARY TABLE %s ({0})
+            '''.format(','.join(columns)) % union_table_name
+            cur.execute(statement)
+            statement = '''
+            INSERT INTO %s VALUES ({0})
+            '''.format(','.join(['?'] * len(columns))) % union_table_name
+            cur.executemany(statement, union)
+            statement = '''
+            SELECT {0} FROM %s
+            '''.format(','.join(columns)) % union_table_name
+            if group_cmd[1]:
+                statement += group_cmd[1] + group_cmd[2]
+
+            if order_cmd[1]:
+                statement += order_cmd[1] + order_cmd[2]
+
+            if limit_cmd[1]:
+                statement += limit_cmd[1] + limit_cmd[2]
+
+            cur.execute(statement)
+            union = cur.fetchall()
+
         final_time = time.time()
-        print(tuple([c[0] for c in columns]))
-        for row in union:
-            print(tuple(row))
+        exibe_linhas(columns, union)
         print('''
-                                        Consulta realizada em %1.10fs
+                                        Consulta realizada em %.10fs
         ''' % (final_time - initial_time))
 
     except Exception as e:
         # logging.exception('Erro')
         print(e)
         metabanco.DB.rollback()
+
+    finally:
+        try:
+            if union_table_name:
+                metabanco.DB.execute('DROP TABLE %s' % union_table_name)
+        except:
+            pass
+
+
+def exibe_linhas(columns, rows):
+    print(tuple(columns))
+    for row in rows:
+        print(tuple(row))

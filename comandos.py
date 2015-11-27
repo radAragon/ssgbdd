@@ -159,43 +159,32 @@ def interpreta_select(cmd, instances):
 
 def interpreta_delete(cmd, instances):
     print('')
-    # separa regras
-    upper_cmd = cmd.upper()
-    if 'PARTITION' in upper_cmd:
-        cmd_parts = upper_cmd.partition('PARTITION')
-    elif 'SITE' in upper_cmd:
-        cmd_parts = upper_cmd.partition('SITE')
-    elif 'REFERENCES' in upper_cmd:
-        cmd_parts = [upper_cmd, 'REFERENCES']
-    else:
-        raise Exception('Precisa definir PARTITION, SITE ou conter REFERENCES')
-
-    delete_table = cmd_parts[0]
     table_name = None
     try:
-        table_def = delete_table.partition('(')
-        words = table_def[0].split()
+        words = cmd.upper().split()
         next_name = False
-        for word in words:
-            if word == 'TABLE':
+        for word in cmd_parts:
+            if word == 'FROM':
                 next_name = True
             elif next_name:
                 table_name = word
                 break
+        # TODO: separar toda a cláusula WHERE e fazer um SELECT na tabela
+        # primeiro para identificar os IDs a excluir do índice de sequencias
 
-        if not result:
-            identifica_tabela(table_name)
-            print('Nome de tabela não existente')
-        else:
-            for i in instances:
-                i['comm'].send({
-                    'execute': 'SIMPLE',
-                    'query': delete_table
-                })
+        table = metabanco.identifica_tabela(table_name)
+        obj = {
+            'execute': 'SIMPLE',
+            'query': cmd
+        }
+        for i in instances:
+            i['comm'].send(obj)
+
         for i in instances:
             resp = i['comm'].recv()
             if not resp['result']:
                 raise Exception('Falha ao aplicar em instância')
+
         metabanco.DB.commit()
 
     except Exception as e:

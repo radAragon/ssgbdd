@@ -147,6 +147,7 @@ Iniciando banco principal...
         'CREATE': comandos.interpreta_create,
         'INSERT': comandos.interpreta_insert,
         'SELECT': comandos.interpreta_select,
+        'DELETE': comandos.interpreta_delete
     }
 
     print('''

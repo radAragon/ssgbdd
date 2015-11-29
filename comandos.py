@@ -163,14 +163,12 @@ def interpreta_delete(cmd, instances):
     try:
         words = cmd.upper().split()
         next_name = False
-        for word in cmd_parts:
+        for word in words:
             if word == 'FROM':
                 next_name = True
             elif next_name:
                 table_name = word
                 break
-        # TODO: separar toda a cláusula WHERE e fazer um SELECT na tabela
-        # primeiro para identificar os IDs a excluir do índice de sequencias
 
         table = metabanco.identifica_tabela(table_name)
         obj = {
@@ -184,6 +182,7 @@ def interpreta_delete(cmd, instances):
             resp = i['comm'].recv()
             if not resp['result']:
                 raise Exception('Falha ao aplicar em instância')
+            print('[%d] Excluídos: %d' % (i['id'], resp['rowcount']))
 
         metabanco.DB.commit()
 

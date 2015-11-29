@@ -241,3 +241,40 @@ def exibe_linhas(columns, rows):
     print(' | '.join([str(col).center(col_size) for col in columns]))
     for row in rows:
         print(' | '.join([str(col).ljust(col_size) for col in row]))
+
+
+def interpreta_delete(cmd, instances):
+    print('')
+    table_name = None
+    try:
+        words = cmd.upper().split()
+        next_name = False
+        for word in words:
+            if word == 'FROM':
+                next_name = True
+            elif next_name:
+                table_name = word
+                break
+
+        table = metabanco.identifica_tabela(table_name)
+        obj = {
+            'execute': 'SIMPLE',
+            'query': cmd
+        }
+        for i in instances:
+            i['comm'].send(obj)
+
+        for i in instances:
+            resp = i['comm'].recv()
+            if not resp['result']:
+                raise Exception('Falha ao aplicar em instância')
+            print('[%d] Excluídos: %d' % (i['id'], resp['rowcount']))
+
+        metabanco.DB.commit()
+
+    except Exception as e:
+        print('Erro:', e)
+        print('Executando ROLLBACK')
+        metabanco.DB.rollback()
+
+    return None

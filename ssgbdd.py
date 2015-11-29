@@ -173,20 +173,19 @@ Comandos:
 
     SITE site_id
 
-    CREATE TABLE nome ([id INTEGER PRIMARY KEY],
+    CREATE TABLE nome (id INTEGER PRIMARY KEY,
                        nome_coluna tipo_coluna [REFERENCES nome_tabela], )
         - [PARTITION nome_coluna (site_id: critério, )]
-        ou
-        - [SITE site_id]
 
     INSERT INTO nome_tabela [(nome_coluna, )] VALUES (valor_coluna, )
 
-    SELECT [nome_coluna, ] FROM nome_tabela
-        - [JOIN nome_tabela_join ON expressão],
+    SELECT nome_colunas FROM nome_tabela [JOIN nome_tabela_join ON critério]
         - [WHERE nome_coluna critério, ]
         - [GROUP BY nome_coluna, ]
         - [ORDER BY nome_coluna, ]
         - [LIMIT x]
+
+    DELETE FROM nome_tabela [WHERE nome_coluna critério, ]
 
     SAIR
 ''')

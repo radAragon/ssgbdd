@@ -243,7 +243,7 @@ def exibe_linhas(columns, rows):
         print(' | '.join([str(col).ljust(col_size) for col in row]))
 
 
-def interpreta_delete(cmd, instances):
+def interpreta_delete(cmd, instances, current_site):
     print('')
     table_name = None
     try:
@@ -257,6 +257,39 @@ def interpreta_delete(cmd, instances):
                 break
 
         table = metabanco.identifica_tabela(table_name)
+
+        # seleciona IDs a serem excluídos e retira do índice
+        delete_list = list()
+        query_parts = cmd.upper().partition('WHERE')
+        statement = '''
+        SELECT id FROM %s
+        ''' % table_name + query_parts[1] + query_parts[2]
+        print(statement)
+        obj = {
+            'execute': 'SIMPLE',
+            'query': statement
+        }
+        for i in instances:
+            i['comm'].send(obj)
+
+        for i in instances:
+            resp = i['comm'].recv()
+            if not resp['result']:
+                raise Exception('Falha ao aplicar em instância')
+            delete_list.extend([x[0] for x in resp['rows']])
+
+        print(delete_list)
+        cur = metabanco.DB.cursor()
+        statement = '''
+        DELETE FROM sequencias
+        WHERE tabelas_id = ?
+        AND ref_id in ({0})
+        '''.format(','.join(['?'] * len(delete_list)))
+        print(statement)
+        cur.execute(statement, [table['id']] + delete_list)
+        print(cur.rowcount)
+
+        # envia query DELETE para instâncias
         obj = {
             'execute': 'SIMPLE',
             'query': cmd
